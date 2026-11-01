@@ -72,6 +72,32 @@ tablero se guardan en el servidor (`data/canvan/<proceso>.json`), así todos ven
   solos a **Por hacer** al abrir el portal. Cada uno entra una sola vez: si se borra la tarjeta, no vuelve.
 - Si dos personas guardan a la vez, la segunda recibe la última versión y un aviso para revisar su cambio.
 
+### Gantt
+
+La vista **Gantt** (`#/gantt`, en la sección Canvan del menú) muestra las tareas de todos los Canvan en una
+línea de tiempo, agrupadas por proceso. Cada barra va de la **Fecha de inicio** a la **Fecha límite** de la tarjeta
+y toma el color de su columna; el avance sale del checklist.
+
+- Arrastrar una barra la mueve; arrastrar sus bordes cambia el inicio o el fin. Se guarda en el Canvan.
+- Tocar una tarea abre sus fechas; tocar la fila de una tarea sin fechas la crea desde ese día.
+- Sin fecha de inicio, la barra arranca en la fecha de creación (borde punteado). Las vencidas tienen borde rojo.
+- La **fecha límite** del plan (por defecto el 31/12/2026) es la línea violeta punteada. Se mueve arrastrando su
+  marca en el encabezado, con las flechas ← → o desde el campo «Fecha límite». Se guarda para todos en
+  `data/gantt.json`. Las tareas que terminan después tienen borde naranja.
+- Para **cambiar el orden** de las tareas, arrastralas hacia arriba o abajo desde el asa ⋮⋮ o desde su nombre
+  (o Alt + ↑ / ↓). Se mueven dentro de su proceso y el orden se guarda en `data/gantt.json`, sin cambiar el Canvan.
+- **Dependencias** (fin → inicio): en el editor de la tarea, «Depende de» permite agregar tareas previas, también de
+  otros procesos, y quitarlas. Se guardan en la tarjeta (`dependeDe`) y se dibujan como flechas; en rojo si la tarea
+  empieza antes de que termine la previa. El editor ofrece correrla al día siguiente y no deja crear ciclos.
+- **Estado de salud** del proyecto Bymovi (o del proceso filtrado), arriba del Gantt (`SaludProyecto.jsx`):
+  - 🔴 *Atrasado*: tareas vencidas, que terminan después de la fecha límite, o la fecha límite ya pasó.
+  - 🟠 *En riesgo*: tareas que debían empezar y siguen en «Por hacer», dependencias en conflicto, tareas que
+    esperan a una vencida, o el avance va más de 15 puntos detrás del tiempo transcurrido.
+  - 🟢 *En término*: nada de lo anterior.
+  - Avance: completada 100 %, con checklist según sus pasos, en curso sin checklist 50 %, por hacer 0 %.
+  - Las alertas de atraso se listan por gravedad (los avisos, como «vence esta semana», no cambian el estado);
+    un clic abre la tarea, y las filas con alertas críticas o de riesgo llevan una marca «!».
+
 ### Modelos de datos desde draw.io
 
 Los diagramas entidad-relación hechos en draw.io (tablas con filas PK/FK) se importan con:

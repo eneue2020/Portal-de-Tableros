@@ -2,15 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api.js';
 import { TableroForm } from './TableroForm.jsx';
 import { ProcesoVista } from './ProcesoVista.jsx';
+import { GanttVista } from './GanttVista.jsx';
 import { Icon } from './Icon.jsx';
 
 const fmtFecha = (iso) =>
   new Date(iso).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
 
-// Rutas: #/  ·  #/t/<tablero>  ·  #/procesos/<proceso>  ·  #/canvan/<proceso>
+// Rutas: #/  ·  #/t/<tablero>  ·  #/procesos/<proceso>  ·  #/canvan/<proceso>  ·  #/gantt
 const PREFIJOS = { tablero: 't', proceso: 'procesos', canvan: 'canvan' };
 
 function leerRuta() {
+  if (location.hash === '#/gantt') return { vista: 'gantt', id: null };
   const [, prefijo, id] = location.hash.match(/^#\/(t|procesos|canvan)\/(.+)$/) || [];
   const vista = Object.keys(PREFIJOS).find((v) => PREFIJOS[v] === prefijo);
   return vista ? { vista, id: decodeURIComponent(id) } : { vista: 'inicio', id: null };
@@ -24,7 +26,7 @@ function useRuta() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   const ir = useCallback((vista, id) => {
-    location.hash = !id ? '#/' : `#/${PREFIJOS[vista]}/${encodeURIComponent(id)}`;
+    location.hash = vista === 'gantt' ? '#/gantt' : !id ? '#/' : `#/${PREFIJOS[vista]}/${encodeURIComponent(id)}`;
   }, []);
   return [ruta, ir];
 }
@@ -252,6 +254,13 @@ export default function App() {
         )}
       </>
     );
+  } else if (ruta.vista === 'gantt') {
+    encabezado = (
+      <div className="titulo">
+        <h1>Gantt</h1>
+        <p>Tareas de todos los Canvan · arrastrá una barra para moverla o sus bordes para cambiar las fechas</p>
+      </div>
+    );
   } else {
     encabezado = (
       <div className="titulo">
@@ -276,6 +285,8 @@ export default function App() {
     );
   } else if (ruta.vista === 'proceso' && (procesoActual || cargando)) {
     cuerpo = <ProcesoVista id={ruta.id} />;
+  } else if (ruta.vista === 'gantt') {
+    cuerpo = <GanttVista ir={ir} onAviso={setAviso} />;
   } else if (canvanActual) {
     // Sin sandbox: la app necesita el mismo origen para leer y guardar en /api/canvan
     cuerpo = <iframe key={canvanActual.id} className="visor" title={`Canvan · ${canvanActual.nombre}`} src={`/canvan?id=${encodeURIComponent(canvanActual.id)}`} />;
@@ -322,6 +333,11 @@ export default function App() {
 
         <h2 className="seccion">Canvan</h2>
         <div className="tarjetas">
+          <button className="tarjeta" onClick={() => ir('gantt')}>
+            <span className="etiqueta canvan-tag">Planificación</span>
+            <h2>Gantt</h2>
+            <p>Las tareas de todos los Canvan en una línea de tiempo, con su inicio y fecha límite.</p>
+          </button>
           {canvans.map((k) => (
             <button key={k.id} className="tarjeta" onClick={() => ir('canvan', k.id)}>
               <span className="etiqueta canvan-tag">Canvan · {k.area}</span>
@@ -387,6 +403,14 @@ export default function App() {
           {canvansFiltrados.length > 0 && (
             <section>
               <h3>Canvan</h3>
+              <button
+                className={`item ${ruta.vista === 'gantt' ? 'activo' : ''}`}
+                onClick={() => ir('gantt')}
+                title="Tareas de todos los Canvan en una línea de tiempo"
+              >
+                <Icon name="gantt" />
+                <span>Gantt</span>
+              </button>
               {canvansFiltrados.map((k) => (
                 <button
                   key={k.id}

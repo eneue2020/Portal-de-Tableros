@@ -14,6 +14,8 @@ const paths = {
   file: 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6',
   download: 'M12 4v12M7 11l5 5 5-5M4 20h16',
   kanban: 'M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v6h-4z',
+  gantt: 'M3 4v16M6 7h8M9 12h10M7 17h6',
+  grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
   sun: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
   moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z',
   trash:'M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',

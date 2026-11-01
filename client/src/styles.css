@@ -388,3 +388,261 @@ button, input, textarea { font: inherit; color: inherit; }
   font-size: 11.5px; font-weight: 600; line-height: 18px; text-align: center;
   background: var(--panel); color: var(--muted); border: 1px solid var(--line);
 }
+
+/* ---------- Gantt ---------- */
+
+.gantt { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.gantt-barra {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 10px 20px; border-bottom: 1px solid var(--line);
+}
+.gantt-resumen { font-size: 13px; color: var(--muted); }
+.gantt-resumen b { color: var(--fg); font-weight: 600; }
+.gantt-resumen .gantt-vencida-txt { color: var(--danger); }
+.gantt-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.gantt-filtros select {
+  height: 36px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--fg); font: inherit; font-size: 13.5px;
+}
+.gantt-chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 99px;
+  border: 1px solid var(--line); background: var(--panel); font-size: 13px; cursor: pointer;
+}
+.gantt-chip i { width: 8px; height: 8px; border-radius: 50%; }
+.gantt-chip.off { opacity: 0.45; text-decoration: line-through; }
+.gantt-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); cursor: pointer; }
+.gantt-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.gantt-seg button { height: 34px; padding: 0 12px; border: 0; background: var(--panel); cursor: pointer; font-size: 13px; }
+.gantt-seg button + button { border-left: 1px solid var(--line); }
+.gantt-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.gantt-ayuda {
+  margin: 12px 20px 0; padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  background: var(--info-soft); color: var(--fg); border: 1px solid color-mix(in srgb, var(--info) 35%, transparent);
+}
+
+.gantt-scroll { flex: 1; overflow: auto; min-height: 0; margin: 12px 20px 20px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+.gantt-tabla { position: relative; min-height: 100%; }
+.gantt-cab, .gantt-fila { display: flex; }
+.gantt-izq {
+  position: sticky; left: 0; z-index: 2; flex: none; width: 320px;
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: var(--panel); border-right: 1px solid var(--line);
+}
+.gantt-linea { position: relative; flex: none; }
+
+.gantt-cab { position: sticky; top: 0; z-index: 4; height: 52px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.gantt-cab-izq { z-index: 5; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.gantt-meses, .gantt-dias { position: relative; height: 26px; }
+.gantt-meses span, .gantt-dias span {
+  position: absolute; top: 0; height: 100%; display: flex; align-items: center; overflow: hidden; white-space: nowrap;
+  font-size: 11.5px; color: var(--muted);
+}
+.gantt-meses span { padding-left: 8px; font-weight: 600; color: var(--fg); text-transform: capitalize; border-left: 1px solid var(--line); }
+.gantt-dias span { justify-content: center; font-variant-numeric: tabular-nums; }
+.gantt-dias span.finde { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.gantt-dias span.lunes { border-left: 1px solid var(--line); }
+
+.gantt-fila { height: 36px; border-bottom: 1px solid var(--line); }
+.gantt-fila:hover .gantt-izq, .gantt-fila:hover .gantt-fondo { background-color: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+.gantt-fila-grupo { height: 34px; }
+.gantt-fila-grupo .gantt-izq, .gantt-fila-grupo .gantt-fondo { background-color: var(--side); }
+.gantt-fila-grupo .enlace { font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gantt-n { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+.gantt-tarea { gap: 2px; padding-left: 4px; user-select: none; }
+.gantt-tarea-btn {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 8px; padding: 0 4px;
+  border: 0; background: none; cursor: pointer; text-align: left;
+}
+.gantt-tarea-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+.gantt-asa {
+  flex: none; display: grid; place-items: center; width: 18px; height: 26px; border-radius: 4px;
+  color: var(--muted); opacity: 0.35; cursor: grab; touch-action: none;
+}
+.gantt-asa .ico { width: 16px; height: 16px; }
+.gantt-fila:hover .gantt-asa { opacity: 1; }
+.gantt-asa:hover { background: var(--side); }
+
+/* Cambio de orden: la fila arrastrada se atenúa y una línea violeta marca dónde va a quedar */
+.gantt-fila { position: relative; }
+.gantt-fila.arrastrada { opacity: 0.45; }
+.gantt-fila.soltar-antes::before, .gantt-fila.soltar-despues::after {
+  content: ""; position: absolute; left: 0; right: 0; z-index: 4; height: 3px; border-radius: 2px;
+  background: var(--accent); pointer-events: none;
+}
+.gantt-fila.soltar-antes::before { top: -2px; }
+.gantt-fila.soltar-despues::after { bottom: -2px; }
+body.gantt-reordenando, body.gantt-reordenando * { cursor: grabbing !important; user-select: none; }
+.gantt-punto { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.gantt-titulo { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+.gantt-sin { flex: none; font-size: 11px; color: var(--muted); border: 1px dashed var(--line); border-radius: 99px; padding: 0 6px; }
+
+/* Grilla de fondo: una línea por semana (en el lunes) y una más tenue por día en la escala de semanas */
+.gantt-fondo {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to right, color-mix(in srgb, var(--line) 45%, transparent) 1px, transparent 1px);
+  background-size: var(--semana) 100%, var(--dw) 100%;
+  background-position: var(--lunes) 0, 0 0;
+}
+.gantt-fila:not(.gantt-fila-grupo) .gantt-fondo:not(:has(.gantt-bar)) { cursor: copy; }
+
+.gantt-bar {
+  position: absolute; top: 7px; height: 22px; min-width: 6px; padding: 0 8px; overflow: hidden;
+  display: flex; align-items: center; border-radius: 6px; cursor: grab; touch-action: none; user-select: none;
+  border: 1px solid color-mix(in srgb, var(--c) 80%, #000);
+  background: color-mix(in srgb, var(--c) 55%, var(--panel)); color: var(--fg);
+}
+.gantt-bar:active { cursor: grabbing; }
+.gantt-bar::before, .gantt-bar::after { content: ""; position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.gantt-bar::before { left: 0; }
+.gantt-bar::after { right: 0; }
+.gantt-bar span { position: relative; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gantt-bar .gantt-avance { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--c) 85%, var(--panel)); }
+.gantt-bar.estimado { border-style: dashed; background: color-mix(in srgb, var(--c) 28%, var(--panel)); }
+.gantt-bar.vencida { border: 2px solid var(--danger); }
+.gantt-bar.hito { padding: 0; border-radius: 4px; transform: scale(0.75) rotate(45deg); width: 22px !important; margin-left: 2px; }
+.gantt-bar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.gantt-hoy { position: absolute; top: 26px; bottom: 0; z-index: 3; width: 2px; margin-left: -1px; background: var(--danger); pointer-events: none; }
+.gantt-hoy::before { content: ""; position: absolute; top: 0; left: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.gantt-vacio { position: sticky; left: 0; padding: 20px; }
+
+/* Fecha límite del plan: línea violeta punteada al final del día, con una marca arrastrable en el encabezado */
+.gantt-limite {
+  position: absolute; top: 26px; bottom: 0; z-index: 3; width: 0; margin-left: -1px;
+  border-left: 2px dashed var(--accent); pointer-events: none;
+}
+.gantt-limite-marca {
+  position: absolute; top: 3px; z-index: 6; height: 20px; padding: 0 8px; border: 0; border-radius: 0 6px 6px 0;
+  background: var(--accent); color: var(--on-accent); font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  cursor: ew-resize; touch-action: none; user-select: none; margin-left: -1px;
+}
+.gantt-limite-marca::before {
+  content: ""; position: absolute; left: 0; top: 100%; width: 2px; height: 30px; background: var(--accent);
+}
+.gantt-limite-marca.arrastrando { box-shadow: 0 0 0 3px var(--accent-soft); }
+.gantt-limite-marca:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.gantt-limite-campo { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.gantt-limite-campo input {
+  height: 36px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--accent);
+  background: var(--panel); color: var(--fg); font: inherit; font-size: 13.5px;
+}
+.gantt-bar.pasada { border: 2px solid var(--warn); }
+.gantt-resumen .gantt-pasada-txt { color: var(--warn); }
+
+/* Dependencias: flechas del final de la tarea previa al inicio de la siguiente; en rojo si se pisan */
+.gantt-deps { position: absolute; top: 0; z-index: 1; overflow: visible; pointer-events: none; }
+.gantt-flecha { fill: none; stroke: var(--edge); stroke-width: 1.5; stroke-linejoin: round; pointer-events: stroke; }
+.gantt-flecha.mal { stroke: var(--danger); stroke-width: 2; stroke-dasharray: 5 3; }
+.gantt-punta { fill: var(--edge); }
+.gantt-punta.mal { fill: var(--danger); }
+
+.gantt-editor { max-height: calc(100vh - 32px); overflow-y: auto; }
+.gantt-editor h2 { margin-top: 8px; }
+.gantt-deps-editor { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--line); }
+.gantt-deps-titulo { font-size: 12.5px; font-weight: 500; color: var(--muted); }
+.gantt-deps-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gantt-deps-lista li {
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+}
+.gantt-deps-lista li.mal { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, var(--panel)); }
+.gantt-deps-lista .btn.icono { width: 28px; height: 28px; font-size: 18px; }
+.gantt-deps-nombre { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 13.5px; }
+.gantt-deps-nombre, .gantt-deps-nombre small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gantt-deps-nombre small { color: var(--muted); font-size: 12px; }
+.gantt-deps-agregar {
+  height: 36px; padding: 0 10px; border-radius: 8px; border: 1px dashed var(--line);
+  background: var(--panel); color: var(--fg); font: inherit; font-size: 13.5px; cursor: pointer;
+}
+.gantt-deps-agregar:hover, .gantt-deps-agregar:focus { border-color: var(--accent); outline: 0; }
+.gantt-deps-aviso { margin: 0; font-size: 13px; color: var(--danger); }
+.gantt-desc { margin: 6px 0 0; color: var(--muted); font-size: 13px; white-space: pre-line; }
+.gantt-fechas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gantt-editor .pie { flex-wrap: wrap; }
+
+@media (max-width: 800px) {
+  .gantt-barra { padding: 10px 16px; }
+  .gantt-scroll { margin: 10px 12px 12px; }
+}
+
+/* ---------- Estado de salud del proyecto (panel del Gantt) ---------- */
+
+.salud {
+  --estado: var(--ok, #1f9d55);
+  margin: 12px 20px 0; border: 1px solid var(--line); border-left: 4px solid var(--estado);
+  border-radius: var(--radius); background: var(--panel);
+}
+.salud-ok { --estado: #1f9d55; }
+.salud-riesgo { --estado: var(--warn); }
+.salud-atrasado { --estado: var(--danger); }
+.salud-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; }
+.salud-punto {
+  flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--estado);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--estado) 20%, transparent);
+}
+.salud-titulo { display: flex; flex-direction: column; line-height: 1.2; }
+.salud-titulo small { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.salud-titulo strong { font-size: 18px; color: var(--estado); }
+.salud-motivo { flex: 1 1 260px; margin: 0; font-size: 13.5px; color: var(--fg); }
+.salud-cuentas { display: flex; gap: 6px; }
+.salud-cuenta { padding: 2px 9px; border-radius: 99px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.salud-cuenta.nivel-critica { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.salud-cuenta.nivel-riesgo { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn); }
+.salud-cuenta.nivel-aviso { background: var(--info-soft); color: var(--info); }
+
+.salud-cuerpo {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 14px;
+  padding: 12px 14px 14px; border-top: 1px solid var(--line);
+}
+.salud-metricas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-content: start; }
+.salud-metrica { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 8px; background: var(--bg); min-width: 0; }
+.salud-metrica.ancha { grid-column: 1 / -1; gap: 6px; }
+.salud-metrica > span { font-size: 12px; color: var(--muted); }
+.salud-metrica > strong { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.salud-metrica > strong.mal { color: var(--danger); }
+.salud-metrica > strong.atencion { color: var(--warn); }
+.salud-metrica small { font-size: 12px; color: var(--muted); }
+.salud-metrica small strong { color: var(--fg); }
+.salud-barra { position: relative; height: 12px; border-radius: 99px; background: var(--line); }
+.salud-barra i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: var(--estado); }
+.salud-barra b {
+  position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; border-radius: 2px;
+  background: var(--fg);
+}
+
+.salud-alertas { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.salud-alertas-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.salud-alertas-cab > span { font-size: 12.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.salud-alertas-cab .gantt-seg button { height: 28px; padding: 0 10px; font-size: 12.5px; }
+.salud-alertas ul { list-style: none; margin: 0; padding: 0; max-height: 210px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.salud-alertas li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 8px; border-left: 3px solid var(--nivel); background: var(--bg); }
+.salud-alertas li.nivel-critica { --nivel: var(--danger); }
+.salud-alertas li.nivel-riesgo { --nivel: var(--warn); }
+.salud-alertas li.nivel-aviso { --nivel: var(--info); }
+.salud-nivel { flex: none; width: 52px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--nivel); }
+.salud-alerta {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 0; border: 0; background: none;
+  text-align: left; font-size: 13px;
+}
+button.salud-alerta { cursor: pointer; }
+button.salud-alerta:hover strong { color: var(--accent); text-decoration: underline; }
+.salud-alerta strong, .salud-alerta span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.salud-alerta strong { font-weight: 500; }
+.salud-alerta span { color: var(--muted); font-size: 12.5px; }
+.salud-vacio { margin: 0; padding: 10px; color: var(--muted); font-size: 13px; }
+
+/* Marca de alerta en la fila de la tarea */
+.gantt-alerta {
+  flex: none; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%;
+  font-size: 11px; font-weight: 800; color: #fff; background: var(--warn);
+}
+.gantt-alerta.critica { background: var(--danger); }
+
+@media (max-width: 1000px) {
+  .salud-cuerpo { grid-template-columns: 1fr; }
+}
+@media (max-width: 800px) {
+  .salud { margin: 10px 12px 0; }
+  .salud-metricas { grid-template-columns: 1fr 1fr; }
+}

@@ -2,7 +2,7 @@ async function request(url, options) {
   const res = await fetch(url, options);
   if (res.status === 204) return null;
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Error ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(body.error || `Error ${res.status}`), { status: res.status });
   return body;
 }
 
@@ -11,6 +11,20 @@ export const api = {
   listarProcesos: () => request('/api/procesos'),
   proceso: (id) => request(`/api/procesos/${encodeURIComponent(id)}`),
   listarCanvan: () => request('/api/canvan'),
+  gantt: () => request('/api/gantt', { cache: 'no-store' }),
+  guardarGantt: (datos) =>
+    request('/api/gantt', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos),
+    }),
+  canvan: (id) => request(`/api/canvan/${encodeURIComponent(id)}`, { cache: 'no-store' }),
+  guardarCanvan: (id, rev, board) =>
+    request(`/api/canvan/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rev, board }),
+    }),
 
   subir: ({ archivo, nombre, categoria, descripcion }) => {
     const fd = new FormData();

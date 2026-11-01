@@ -482,7 +482,7 @@ function defaultLabels() {
 }
 function newCard(o = {}) {
   const now = Date.now();
-  return { id: uid(), title: '', desc: '', priority: 'medium', labels: [], due: '', checklist: [], createdAt: now, updatedAt: now, completedAt: null, ...o };
+  return { id: uid(), title: '', desc: '', priority: 'medium', labels: [], start: '', due: '', checklist: [], createdAt: now, updatedAt: now, completedAt: null, ...o };
 }
 function emptyBoard(name) {
   return {
@@ -548,6 +548,7 @@ function normalizeState(d) {
       c.title = String(c.title ?? '');
       c.desc = String(c.desc ?? '');
       c.due = typeof c.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.due) ? c.due : '';
+      c.start = typeof c.start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.start) ? c.start : '';
       c.labels = Array.isArray(c.labels) ? c.labels : [];
       c.checklist = Array.isArray(c.checklist) ? c.checklist : [];
       c.priority = PRIORITIES[c.priority] ? c.priority : 'medium';
@@ -984,6 +985,10 @@ function openTaskModal(cardId = null, colId = null) {
           <div class="seg" id="tPrio">${PRIORITY_ORDER.map(p => `<button type="button" data-p="${p}" class="prio-${p} ${draft.priority === p ? 'on' : ''}"><i></i>${PRIORITIES[p].label}</button>`).join('')}</div>
         </div>
         <div class="field">
+          <label class="field-label" for="tStart">${icon('calendar')}Fecha de inicio<span class="right due-preview ok">Para el Gantt</span></label>
+          <input class="inp" type="date" id="tStart" value="${esc(draft.start || '')}">
+        </div>
+        <div class="field">
           <label class="field-label" for="tDue">${icon('calendar')}Fecha límite<span class="right due-preview" id="duePreview"></span></label>
           <input class="inp" type="date" id="tDue" value="${esc(draft.due)}">
           <div class="quick-dates">
@@ -1007,7 +1012,8 @@ function openTaskModal(cardId = null, colId = null) {
       <button class="btn primary" id="tSave" type="button">${isNew ? 'Crear tarea' : 'Guardar cambios'}<kbd>Ctrl ↵</kbd></button>`,
   });
   const el = m.el;
-  const titleIn = $('#tTitle', el), descIn = $('#tDesc', el), dueIn = $('#tDue', el);
+  const titleIn = $('#tTitle', el), descIn = $('#tDesc', el), dueIn = $('#tDue', el), startIn = $('#tStart', el);
+  startIn.addEventListener('change', () => { draft.start = startIn.value || ''; });
 
   setTimeout(() => { titleIn.focus(); if (!isNew) titleIn.setSelectionRange(titleIn.value.length, titleIn.value.length); }, 60);
   titleIn.addEventListener('input', () => { draft.title = titleIn.value; });
@@ -1135,6 +1141,12 @@ function openTaskModal(cardId = null, colId = null) {
       titleIn.classList.add('invalid'); titleIn.focus();
       setTimeout(() => titleIn.classList.remove('invalid'), 600);
       toast('Ponle un título a la tarea', { type: 'warning' });
+      return;
+    }
+    if (draft.start && draft.due && draft.start > draft.due) {
+      startIn.classList.add('invalid'); startIn.focus();
+      setTimeout(() => startIn.classList.remove('invalid'), 600);
+      toast('La fecha de inicio es posterior a la fecha límite', { type: 'warning' });
       return;
     }
     draft.desc = draft.desc.trim();

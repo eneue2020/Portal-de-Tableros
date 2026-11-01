@@ -344,6 +344,52 @@ app.get('/canvan', (_req, res) => {
   res.sendFile(CANVAN_APP);
 });
 
+// ---------- Gantt (configuración compartida en data/gantt.json) ----------
+
+const GANTT_FILE = path.join(DATA_DIR, 'gantt.json');
+// fechaLimite: fecha límite del plan · orden: { <proceso>: [ids de tarjeta] }, el orden de las filas en el Gantt
+const GANTT_INICIAL = { fechaLimite: '2026-12-31', orden: {} };
+const esFecha = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+
+async function leerGantt() {
+  try {
+    return { ...GANTT_INICIAL, ...JSON.parse(await fs.readFile(GANTT_FILE, 'utf8')) };
+  } catch (err) {
+    if (err.code === 'ENOENT') return { ...GANTT_INICIAL };
+    throw err;
+  }
+}
+
+app.get('/api/gantt', async (_req, res, next) => {
+  try {
+    res.json(await leerGantt());
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Cambios parciales: la fecha límite y/o el orden de un proceso (solo ese, para no pisar el de los demás)
+app.put('/api/gantt', async (req, res, next) => {
+  try {
+    const { fechaLimite, ordenProceso } = req.body || {};
+    if (fechaLimite === undefined && ordenProceso === undefined) return res.status(400).json({ error: 'Sin cambios' });
+    if (fechaLimite !== undefined && !esFecha(fechaLimite)) return res.status(400).json({ error: 'Fecha límite inválida' });
+    if (
+      ordenProceso !== undefined &&
+      !(typeof ordenProceso?.id === 'string' && idValido(ordenProceso.id) && Array.isArray(ordenProceso.ids) && ordenProceso.ids.every((x) => typeof x === 'string'))
+    ) {
+      return res.status(400).json({ error: 'Orden inválido' });
+    }
+    const datos = await leerGantt();
+    if (fechaLimite !== undefined) datos.fechaLimite = fechaLimite;
+    if (ordenProceso !== undefined) datos.orden = { ...datos.orden, [ordenProceso.id]: ordenProceso.ids };
+    await fs.writeFile(GANTT_FILE, JSON.stringify(datos, null, 2), 'utf8');
+    res.json(datos);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Sirve el HTML de cada tablero (se muestra dentro de un iframe aislado)
 app.get('/ver/:id', async (req, res, next) => {
   try {
