@@ -1,1 +1,98 @@
-# Portal-de-Tableros
+# Portal de Tableros
+
+Portal web (Node.js + Express + React) para publicar tableros HTML en la red local.
+
+## Uso
+
+```bash
+npm install        # solo la primera vez
+npm run serve      # compila el frontend y levanta el servidor en el puerto 3000
+```
+
+O doble clic en `iniciar.bat`.
+
+Al arrancar, la consola muestra las direcciones de acceso:
+
+```
+Local:  http://localhost:3000
+Red:    http://192.168.x.x:3000   <- compartir esta con el resto de la red
+```
+
+Para cambiar el puerto: `set PORT=8080 && npm start` (cmd) o `$env:PORT=8080; npm start` (PowerShell).
+
+### Firewall de Windows
+
+La primera vez Windows puede pedir permiso para Node.js: aceptar en **redes privadas**.
+Si no aparece y no se puede entrar desde otra PC, ejecutar como administrador:
+
+```powershell
+New-NetFirewallRule -DisplayName "Portal de Tableros" -Direction Inbound -Protocol TCP -LocalPort 3000 -Action Allow -Profile Private
+```
+
+## Desarrollo
+
+```bash
+npm run dev        # API en :3000 + Vite con recarga en caliente en :5173
+```
+
+## Estructura
+
+```
+server/index.js        API Express y servidor de archivos
+client/src/            App React (Vite)
+data/tableros/         Archivos HTML de los tableros
+data/tableros.json     Nombre, categoría y descripción de cada tablero
+dist/                  Frontend compilado (npm run build)
+```
+
+Los tableros se agregan desde la web (botón **Agregar tablero**) o copiando el `.html`
+directamente en `data/tableros/`: se registran solos al recargar el portal, usando el `<title>` como nombre.
+
+## Vista de Procesos
+
+Cada proceso es un archivo JSON en `data/procesos/` (ver `carga-convenios.json` como ejemplo) y se
+dibuja como diagrama de actividad UML con carriles. Para agregar uno, copiar el ejemplo y editar:
+
+- `carriles`: columnas del diagrama (área o sistema) con sus `responsables`.
+- `nodos`: pasos del proceso. `tipo`: `inicio`, `actividad`, `decision` o `fin`; `carril` y `fila` fijan la posición.
+  Opcionales: `detalle`, `responsables`, `tareas`, `artefactos` (archivos), `alerta` (problema) y `pendiente`.
+- `flujos`: flechas `desde` → `hasta`, con `etiqueta` opcional (Sí/No). `ruta` permite desviar la flecha
+  por puntos intermedios `[carril, fila]` cuando atraviesa otros pasos.
+- `observaciones`: problemas y pendientes generales del proceso.
+
+Aparece en el portal al recargar la página, sin reiniciar el servidor.
+
+## Canvan
+
+Cada proceso de `data/procesos/` tiene un tablero kanban (Canvan) para gestionar sus pendientes, con las
+columnas Por hacer, En progreso y Completado. La app está en `canvan/index.html` y los datos de cada
+tablero se guardan en el servidor (`data/canvan/<proceso>.json`), así todos ven lo mismo.
+
+- Los pendientes del proceso (observaciones de tipo `pendiente` y el `pendiente` de cada paso) entran
+  solos a **Por hacer** al abrir el portal. Cada uno entra una sola vez: si se borra la tarjeta, no vuelve.
+- Si dos personas guardan a la vez, la segunda recibe la última versión y un aviso para revisar su cambio.
+
+### Modelos de datos desde draw.io
+
+Los diagramas entidad-relación hechos en draw.io (tablas con filas PK/FK) se importan con:
+
+```bash
+node scripts/importar-drawio.js data/fuentes/bymovi-app.drawio modelo-app-bymovi
+```
+
+Genera `data/procesos/modelo-app-bymovi.json` (tipo `modelo`) respetando la posición de las tablas
+del original. Al reimportar un archivo actualizado se conservan el nombre, el área, la descripción y el
+enlace a la fuente; para cambiarlos: `--nombre "..." --area "..." --descripcion "..." --fuente URL`.
+
+## API
+
+| Método | Ruta                          | Acción                                |
+|--------|-------------------------------|---------------------------------------|
+| GET    | `/api/tableros`               | Lista los tableros                    |
+| POST   | `/api/tableros`               | Sube uno nuevo (multipart: `archivo`, `nombre`, `categoria`, `descripcion`) |
+| PATCH  | `/api/tableros/:id`           | Edita nombre, categoría o descripción |
+| PUT    | `/api/tableros/:id/archivo`   | Reemplaza el HTML                     |
+| DELETE | `/api/tableros/:id`           | Elimina el tablero                    |
+| GET    | `/ver/:id`                    | Muestra el HTML del tablero           |
+| GET    | `/api/procesos`               | Lista los procesos                    |
+| GET    | `/api/procesos/:id`           | Definición completa de un proceso     |
