@@ -58,6 +58,48 @@ function useTema() {
   return [tema, alternar];
 }
 
+// Secciones del menú lateral plegadas: se guardan en este navegador
+const MENU_KEY = 'portal.menu.plegadas';
+
+function usePlegadas() {
+  const [plegadas, setPlegadas] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(MENU_KEY)) || []);
+    } catch {
+      return new Set();
+    }
+  });
+  const alternar = useCallback((id) => {
+    setPlegadas((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      try {
+        localStorage.setItem(MENU_KEY, JSON.stringify([...n]));
+      } catch {}
+      return n;
+    });
+  }, []);
+  return [plegadas, alternar];
+}
+
+function Seccion({ titulo, cantidad, plegada, onAlternar, children }) {
+  return (
+    <section className={plegada ? 'plegada' : ''}>
+      <h3>
+        <button type="button" className="seccion-menu" onClick={onAlternar} aria-expanded={!plegada}>
+          <svg className="ico flecha" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+          <span>{titulo}</span>
+          {plegada && <span className="seccion-n">{cantidad}</span>}
+        </button>
+      </h3>
+      {!plegada && children}
+    </section>
+  );
+}
+
 export default function App() {
   const [tableros, setTableros] = useState([]);
   const [procesos, setProcesos] = useState([]);
@@ -71,6 +113,9 @@ export default function App() {
   const [version, setVersion] = useState(0); // fuerza recarga del iframe
   const [ruta, ir] = useRuta();
   const [tema, alternarTema] = useTema();
+  const [plegadas, alternarSeccion] = usePlegadas();
+  // Mientras se busca, todas las secciones quedan desplegadas para no esconder resultados
+  const plegada = (id) => !busqueda.trim() && plegadas.has(id);
   const frameRef = useRef(null);
   const reemplazoRef = useRef(null);
 
@@ -367,8 +412,7 @@ export default function App() {
 
         <nav className="lista">
           {grupos.map(([cat, items]) => (
-            <section key={cat}>
-              <h3>{cat}</h3>
+            <Seccion key={cat} titulo={cat} cantidad={items.length} plegada={plegada(`cat:${cat}`)} onAlternar={() => alternarSeccion(`cat:${cat}`)}>
               {items.map((t) => (
                 <button
                   key={t.id}
@@ -380,12 +424,11 @@ export default function App() {
                   <span>{t.nombre}</span>
                 </button>
               ))}
-            </section>
+            </Seccion>
           ))}
 
           {procesosFiltrados.length > 0 && (
-            <section>
-              <h3>Vista de Procesos</h3>
+            <Seccion titulo="Vista de Procesos" cantidad={procesosFiltrados.length} plegada={plegada('procesos')} onAlternar={() => alternarSeccion('procesos')}>
               {procesosFiltrados.map((p) => (
                 <button
                   key={p.id}
@@ -397,12 +440,11 @@ export default function App() {
                   <span>{p.nombre}</span>
                 </button>
               ))}
-            </section>
+            </Seccion>
           )}
 
           {canvansFiltrados.length > 0 && (
-            <section>
-              <h3>Canvan</h3>
+            <Seccion titulo="Canvan" cantidad={canvansFiltrados.length + 1} plegada={plegada('canvan')} onAlternar={() => alternarSeccion('canvan')}>
               <button
                 className={`item ${ruta.vista === 'gantt' ? 'activo' : ''}`}
                 onClick={() => ir('gantt')}
@@ -423,7 +465,7 @@ export default function App() {
                   {k.porHacer > 0 && <span className="contador">{k.porHacer}</span>}
                 </button>
               ))}
-            </section>
+            </Seccion>
           )}
 
           {!cargando && grupos.length === 0 && procesosFiltrados.length === 0 && canvansFiltrados.length === 0 && (

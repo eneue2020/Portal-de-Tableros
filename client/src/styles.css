@@ -100,8 +100,21 @@ button, input, textarea { font: inherit; color: inherit; }
 
 .lista { flex: 1; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
 .lista h3 {
-  margin: 14px 6px 6px; font-size: 11.5px; font-weight: 600;
+  margin: 10px 0 2px; font-size: 11.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+}
+/* Título de sección del menú: despliega u oculta su lista */
+.seccion-menu {
+  display: flex; align-items: center; gap: 6px; width: 100%; padding: 6px; border: 0; border-radius: 6px;
+  background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: left; cursor: pointer;
+}
+.seccion-menu:hover { background: var(--panel); color: var(--fg); }
+.seccion-menu:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seccion-menu .flecha { transform: rotate(90deg); transition: transform 0.15s; }
+.plegada .seccion-menu .flecha { transform: none; }
+.seccion-n {
+  margin-left: auto; padding: 0 6px; border-radius: 99px; font-size: 11px; line-height: 18px;
+  text-transform: none; letter-spacing: 0; background: var(--panel); border: 1px solid var(--line);
 }
 .item {
   display: flex; align-items: center; gap: 10px; width: 100%;
