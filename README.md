@@ -39,14 +39,33 @@ npm run dev        # API en :3000 + Vite con recarga en caliente en :5173
 
 ```
 server/index.js        API Express y servidor de archivos
+server/db.js           Base de datos SQLite: esquema, lectura y escritura
 client/src/            App React (Vite)
+data/portal.db         Base de datos (tableros, Canvan, tareas, dependencias y Gantt)
 data/tableros/         Archivos HTML de los tableros
-data/tableros.json     Nombre, categoría y descripción de cada tablero
+data/procesos/         Definición de cada proceso (JSON)
+data/respaldos/        Copias de la base (npm run respaldo)
 dist/                  Frontend compilado (npm run build)
 ```
 
 Los tableros se agregan desde la web (botón **Agregar tablero**) o copiando el `.html`
 directamente en `data/tableros/`: se registran solos al recargar el portal, usando el `<title>` como nombre.
+
+## Base de datos
+
+El portal guarda sus datos en SQLite (`data/portal.db`), con el módulo `node:sqlite` que trae Node 24: no
+hay que instalar nada. Tablas: `tableros`, `canvan`, `canvan_columnas`, `canvan_etiquetas`, `tareas`,
+`dependencias`, `gantt_config` y `gantt_orden`. Los HTML de los tableros y los procesos siguen como archivos,
+porque se reemplazan o editan enteros.
+
+- **Primera vez:** al arrancar, si la base es nueva, importa `data/tableros.json`, `data/canvan/*.json` y
+  `data/gantt.json`. Esos archivos no se borran, pero desde ese momento **no se usan más**: quedan como respaldo.
+- **Respaldo:** `npm run respaldo` guarda una copia en `data/respaldos/` (conserva las últimas 30). Se puede
+  correr con el portal en marcha; para otra carpeta: `npm run respaldo -- D:\copias`. Conviene programarlo
+  todos los días con el Programador de tareas de Windows.
+- **Restaurar:** detener el portal, reemplazar `data/portal.db` por una copia de `data/respaldos/` (y borrar
+  `portal.db-wal` y `portal.db-shm` si están) y volver a iniciarlo.
+- Otra ubicación para la base: variable de entorno `PORTAL_DB`.
 
 ## Vista de Procesos
 
@@ -66,7 +85,7 @@ Aparece en el portal al recargar la página, sin reiniciar el servidor.
 
 Cada proceso de `data/procesos/` tiene un tablero kanban (Canvan) para gestionar sus pendientes, con las
 columnas Por hacer, En progreso y Completado. La app está en `canvan/index.html` y los datos de cada
-tablero se guardan en el servidor (`data/canvan/<proceso>.json`), así todos ven lo mismo.
+tablero se guardan en la base del servidor, así todos ven lo mismo.
 
 - Los pendientes del proceso (observaciones de tipo `pendiente` y el `pendiente` de cada paso) entran
   solos a **Por hacer** al abrir el portal. Cada uno entra una sola vez: si se borra la tarjeta, no vuelve.
@@ -82,10 +101,10 @@ y toma el color de su columna; el avance sale del checklist.
 - Tocar una tarea abre sus fechas; tocar la fila de una tarea sin fechas la crea desde ese día.
 - Sin fecha de inicio, la barra arranca en la fecha de creación (borde punteado). Las vencidas tienen borde rojo.
 - La **fecha límite** del plan (por defecto el 31/12/2026) es la línea violeta punteada. Se mueve arrastrando su
-  marca en el encabezado, con las flechas ← → o desde el campo «Fecha límite». Se guarda para todos en
-  `data/gantt.json`. Las tareas que terminan después tienen borde naranja.
+  marca en el encabezado, con las flechas ← → o desde el campo «Fecha límite». Se guarda para todos en la
+  base. Las tareas que terminan después tienen borde naranja.
 - Para **cambiar el orden** de las tareas, arrastralas hacia arriba o abajo desde el asa ⋮⋮ o desde su nombre
-  (o Alt + ↑ / ↓). Se mueven dentro de su proceso y el orden se guarda en `data/gantt.json`, sin cambiar el Canvan.
+  (o Alt + ↑ / ↓). Se mueven dentro de su proceso y el orden se guarda en la base, sin cambiar el Canvan.
 - **Dependencias** (fin → inicio): en el editor de la tarea, «Depende de» permite agregar tareas previas, también de
   otros procesos, y quitarlas. Se guardan en la tarjeta (`dependeDe`) y se dibujan como flechas; en rojo si la tarea
   empieza antes de que termine la previa. El editor ofrece correrla al día siguiente y no deja crear ciclos.

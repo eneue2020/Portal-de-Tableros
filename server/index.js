@@ -5,13 +5,13 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { abrirBase } from './db.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = path.join(ROOT, 'data');
 const FILES_DIR = path.join(DATA_DIR, 'tableros');
-const META_FILE = path.join(DATA_DIR, 'tableros.json');
 const PROC_DIR = path.join(DATA_DIR, 'procesos');
-const CANVAN_DIR = path.join(DATA_DIR, 'canvan');
+const DB_FILE = process.env.PORTAL_DB || path.join(DATA_DIR, 'portal.db');
 const CANVAN_APP = path.join(ROOT, 'canvan', 'index.html');
 const DIST_DIR = path.join(ROOT, 'dist');
 const PORT = Number(process.env.PORT) || 3000;
@@ -19,21 +19,10 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 await fs.mkdir(FILES_DIR, { recursive: true });
 await fs.mkdir(PROC_DIR, { recursive: true });
-await fs.mkdir(CANVAN_DIR, { recursive: true });
 
-// ---------- Metadatos ----------
-
-async function readMeta() {
-  try {
-    return JSON.parse(await fs.readFile(META_FILE, 'utf8'));
-  } catch {
-    return [];
-  }
-}
-
-async function writeMeta(list) {
-  await fs.writeFile(META_FILE, JSON.stringify(list, null, 2), 'utf8');
-}
+// Base de datos SQLite: tableros, Canvan y Gantt. La primera vez importa los JSON que había en data/.
+const base = abrirBase(DB_FILE);
+base.importarJson(DATA_DIR);
 
 function slugify(text) {
   return text
@@ -48,32 +37,31 @@ async function titleFromHtml(file) {
   return m ? m[1].trim() : null;
 }
 
-// Registra HTML presentes en la carpeta que todavía no figuran en tableros.json
+// Registra en la base los HTML copiados a mano en data/tableros/ y quita los tableros cuyo archivo ya no está
 async function syncFolder() {
-  const list = await readMeta();
+  const list = base.tableros.listar();
   const known = new Set(list.map((t) => t.archivo));
   const files = (await fs.readdir(FILES_DIR)).filter((f) => f.toLowerCase().endsWith('.html'));
-  let changed = false;
 
   for (const archivo of files) {
     if (known.has(archivo)) continue;
     const full = path.join(FILES_DIR, archivo);
     const stat = await fs.stat(full);
     const nombre = (await titleFromHtml(full)) || archivo.replace(/\.html$/i, '');
-    list.push({
+    const t = {
       id: uniqueId(slugify(nombre), list),
       nombre,
       descripcion: '',
       categoria: 'General',
       archivo,
       actualizado: stat.mtime.toISOString(),
-    });
-    changed = true;
+    };
+    base.tableros.agregar(t);
+    list.push(t);
   }
 
-  const filtered = list.filter((t) => files.includes(t.archivo));
-  if (changed || filtered.length !== list.length) await writeMeta(filtered);
-  return filtered;
+  for (const t of list) if (!files.includes(t.archivo)) base.tableros.eliminar(t.id);
+  return base.tableros.listar();
 }
 
 function uniqueId(base, list) {
@@ -124,8 +112,7 @@ app.post('/api/tableros', upload.single('archivo'), async (req, res, next) => {
       archivo,
       actualizado: new Date().toISOString(),
     };
-    list.push(tablero);
-    await writeMeta(list);
+    base.tableros.agregar(tablero);
     res.status(201).json(tablero);
   } catch (err) {
     next(err);
@@ -140,7 +127,7 @@ app.patch('/api/tableros/:id', async (req, res, next) => {
     for (const key of ['nombre', 'descripcion', 'categoria']) {
       if (typeof req.body[key] === 'string') t[key] = req.body[key].trim() || t[key];
     }
-    await writeMeta(list);
+    base.tableros.actualizar(t);
     res.json(t);
   } catch (err) {
     next(err);
@@ -156,7 +143,7 @@ app.put('/api/tableros/:id/archivo', upload.single('archivo'), async (req, res, 
     if (!t) return res.status(404).json({ error: 'Tablero no encontrado' });
     await fs.writeFile(path.join(FILES_DIR, t.archivo), req.file.buffer);
     t.actualizado = new Date().toISOString();
-    await writeMeta(list);
+    base.tableros.actualizar(t);
     res.json(t);
   } catch (err) {
     next(err);
@@ -169,7 +156,7 @@ app.delete('/api/tableros/:id', async (req, res, next) => {
     const t = list.find((x) => x.id === req.params.id);
     if (!t) return res.status(404).json({ error: 'Tablero no encontrado' });
     await fs.rm(path.join(FILES_DIR, t.archivo), { force: true });
-    await writeMeta(list.filter((x) => x.id !== t.id));
+    base.tableros.eliminar(t.id);
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -270,21 +257,17 @@ function sincronizarCanvan(datos, proceso) {
   return true;
 }
 
+// Después del await todo es sincrónico (node:sqlite), así que leer, sincronizar y guardar no se intercala
+// con otro pedido.
 async function leerCanvan(id) {
   const proceso = await leerProceso(`${id}.json`);
-  const archivo = path.join(CANVAN_DIR, `${id}.json`);
-  let datos;
-  try {
-    datos = JSON.parse(await fs.readFile(archivo, 'utf8'));
-  } catch (err) {
-    if (err.code !== 'ENOENT') throw err;
-    datos = canvanVacio(proceso);
-  }
+  const datos = base.leerCanvan(id) || canvanVacio(proceso);
+  const renombrado = datos.board.name !== proceso.nombre;
   datos.board.name = proceso.nombre;
   if (sincronizarCanvan(datos, proceso) || datos.rev === 0) {
     datos.rev += 1;
-    await fs.writeFile(archivo, JSON.stringify(datos, null, 2), 'utf8');
-  }
+    base.guardarCanvan(id, datos);
+  } else if (renombrado) base.guardarCanvan(id, datos);
   return { proceso, datos };
 }
 
@@ -331,7 +314,7 @@ app.put('/api/canvan/:id', async (req, res, next) => {
     if (rev !== datos.rev) return res.status(409).json({ error: 'Otra persona modificó este canvan', rev: datos.rev, board: datos.board });
     datos.board = { ...board, id: req.params.id };
     datos.rev += 1;
-    await fs.writeFile(path.join(CANVAN_DIR, `${req.params.id}.json`), JSON.stringify(datos, null, 2), 'utf8');
+    base.guardarCanvan(req.params.id, datos);
     res.json({ rev: datos.rev });
   } catch (err) {
     if (err.code === 'ENOENT') return res.status(404).json({ error: 'Canvan no encontrado' });
@@ -344,32 +327,22 @@ app.get('/canvan', (_req, res) => {
   res.sendFile(CANVAN_APP);
 });
 
-// ---------- Gantt (configuración compartida en data/gantt.json) ----------
+// ---------- Gantt (configuración compartida, en la base) ----------
 
-const GANTT_FILE = path.join(DATA_DIR, 'gantt.json');
 // fechaLimite: fecha límite del plan · orden: { <proceso>: [ids de tarjeta] }, el orden de las filas en el Gantt
 const GANTT_INICIAL = { fechaLimite: '2026-12-31', orden: {} };
 const esFecha = (v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
 
-async function leerGantt() {
+app.get('/api/gantt', (_req, res, next) => {
   try {
-    return { ...GANTT_INICIAL, ...JSON.parse(await fs.readFile(GANTT_FILE, 'utf8')) };
-  } catch (err) {
-    if (err.code === 'ENOENT') return { ...GANTT_INICIAL };
-    throw err;
-  }
-}
-
-app.get('/api/gantt', async (_req, res, next) => {
-  try {
-    res.json(await leerGantt());
+    res.json(base.leerGantt(GANTT_INICIAL));
   } catch (err) {
     next(err);
   }
 });
 
 // Cambios parciales: la fecha límite y/o el orden de un proceso (solo ese, para no pisar el de los demás)
-app.put('/api/gantt', async (req, res, next) => {
+app.put('/api/gantt', (req, res, next) => {
   try {
     const { fechaLimite, ordenProceso } = req.body || {};
     if (fechaLimite === undefined && ordenProceso === undefined) return res.status(400).json({ error: 'Sin cambios' });
@@ -380,11 +353,8 @@ app.put('/api/gantt', async (req, res, next) => {
     ) {
       return res.status(400).json({ error: 'Orden inválido' });
     }
-    const datos = await leerGantt();
-    if (fechaLimite !== undefined) datos.fechaLimite = fechaLimite;
-    if (ordenProceso !== undefined) datos.orden = { ...datos.orden, [ordenProceso.id]: ordenProceso.ids };
-    await fs.writeFile(GANTT_FILE, JSON.stringify(datos, null, 2), 'utf8');
-    res.json(datos);
+    base.guardarGantt({ fechaLimite, ordenProceso });
+    res.json(base.leerGantt(GANTT_INICIAL));
   } catch (err) {
     next(err);
   }
@@ -393,7 +363,7 @@ app.put('/api/gantt', async (req, res, next) => {
 // Sirve el HTML de cada tablero (se muestra dentro de un iframe aislado)
 app.get('/ver/:id', async (req, res, next) => {
   try {
-    const t = (await readMeta()).find((x) => x.id === req.params.id);
+    const t = base.tableros.obtener(req.params.id);
     if (!t) return res.status(404).send('Tablero no encontrado');
     res.set('Cache-Control', 'no-cache');
     res.sendFile(path.join(FILES_DIR, t.archivo));

@@ -7,7 +7,8 @@
     "dev": "concurrently -k -n api,web -c blue,green \"node --watch server/index.js\" \"vite\"",
     "build": "vite build",
     "start": "node server/index.js",
-    "serve": "vite build && node server/index.js"
+    "serve": "vite build && node server/index.js",
+    "respaldo": "node scripts/respaldar-db.js"
   },
   "dependencies": {
     "express": "^5.3.0",
